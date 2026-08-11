@@ -33,10 +33,12 @@ def generate(args: argparse.Namespace) -> None:
 
     print(f"Connecting to Hugging Face Space: {SPACE}")
     print("CLOUD-ONLY MODE: no local AI/GPU inference is performed.")
-    client = Client(SPACE, token=token)
+    # gradio_client 1.x uses hf_token; newer Gradio releases renamed this
+    # argument to token. The workflow pins gradio_client below 2, so use the
+    # 1.x-compatible spelling here.
+    client = Client(SPACE, hf_token=token)
 
     # TRELLIS.2's current public Space exposes these inputs for /image_to_3d.
-    # We deliberately use the lower 512 preset for the first automated test.
     image_to_3d = client.submit(
         handle_file(str(image_path)),
         int(args.seed),
