@@ -1,0 +1,82 @@
+name: Free Cloud 3D Generator
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_path:
+        description: "Repository path to the input image"
+        required: true
+        default: "assets/input/character.png"
+        type: string
+      resolution:
+        description: "TRELLIS.2 generation resolution"
+        required: true
+        default: "512"
+        type: choice
+        options:
+          - "512"
+          - "1024"
+      decimation:
+        description: "Target GLB face count"
+        required: true
+        default: "200000"
+        type: choice
+        options:
+          - "100000"
+          - "200000"
+          - "300000"
+      texture_size:
+        description: "GLB texture size"
+        required: true
+        default: "2048"
+        type: choice
+        options:
+          - "1024"
+          - "2048"
+
+jobs:
+  cloud-3d:
+    # Manual only. No schedule, push, pull_request, or local runner.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 12
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install cloud API client only
+        run: python -m pip install --disable-pip-version-check --no-cache-dir "gradio_client>=1.11,<2"
+
+      - name: Verify cloud-only policy
+        run: |
+          echo "CLOUD-ONLY MODE"
+          echo "This runner does not contain a 3D model and does not run CUDA inference."
+          echo "AI generation is requested from Hugging Face TRELLIS.2 ZeroGPU."
+          echo "No paid GPU selection is configured."
+          echo "If Hugging Face rejects the request because free quota is unavailable, the job stops."
+
+      - name: Generate 3D in Hugging Face cloud
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python tools/cloud_3d.py \
+            --image "${{ inputs.image_path }}" \
+            --resolution "${{ inputs.resolution }}" \
+            --decimation "${{ inputs.decimation }}" \
+            --texture-size "${{ inputs.texture_size }}" \
+            --output artifacts/character.glb
+
+      - name: Upload GLB result
+        uses: actions/upload-artifact@v7
+        with:
+          name: cloud-3d-glb
+          path: artifacts/character.glb
+          if-no-files-found: error
+          archive: false
+          retention-days: 7
